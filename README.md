@@ -21,7 +21,7 @@ Clone kernel soruce
 `cd ~`
 `git clone https://github.com/raspberrypi/linux`
 `cd linux`
-`git checkout `uname -r | cut -f 1,2 -d .`.y`
+`git checkout \`uname -r | cut -f 1,2 -d .\`.y`
 
 SSH into your Raspberry Pi and enter the following commands.
 `cd ~`
