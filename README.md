@@ -16,12 +16,14 @@ You need git if it is not already installed.
 `sudo apt-get update`
 `sudo apt-get install git`
 
-SSH into your Raspberry Pi and enter the following commands.
 
+Clone kernel soruce
 `cd ~`
 `git clone https://github.com/raspberrypi/linux`
 `cd linux`
 `git checkout `uname -r | cut -f 1,2 -d .`.y`
+
+SSH into your Raspberry Pi and enter the following commands.
 `cd ~`
 `git clone https://github.com/oshlab/esp8089.git`
 `cd esp8089`
