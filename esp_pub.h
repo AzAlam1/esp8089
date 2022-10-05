@@ -21,6 +21,14 @@
 #include <net/wireless.h>
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
+#define IEEE80211_NUM_BANDS NUM_NL80211_BANDS
+#define IEEE80211_BAND_2GHZ NL80211_BAND_2GHZ
+#define	IEEE80211_BAND_5GHZ NL80211_BAND_5GHZ
+#define RX_FLAG_HT BIT(9)
+#define RX_FLAG_SHORT_GI BIT(11)
+#endif
+
 enum esp_sdio_state{
 	ESP_SDIO_STATE_FIRST_INIT,
 	ESP_SDIO_STATE_FIRST_NORMAL_EXIT,
@@ -78,6 +86,7 @@ struct esp_vif {
 	u32 beacon_interval;
 	bool ap_up;
 	struct timer_list beacon_timer;
+        struct ieee80211_vif *vif;
 };
 
 /* WLAN related, mostly... */
@@ -97,7 +106,7 @@ typedef struct esp_wl {
 	atomic_t tkip_key_set;
 
         /* so far only 2G band */
-        struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
         unsigned long flags;
         atomic_t off;

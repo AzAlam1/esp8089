@@ -196,11 +196,15 @@ static bool check_ac_tid(u8 *pkt, u8 ac, u8 tid)
 
         return false;
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+static void sip_recalc_credit_timeout(struct timer_list *list)
+{
+	struct esp_sip *sip = from_timer(sip,list,credit_timer);
+#else
 static void sip_recalc_credit_timeout(unsigned long data)
 {
 	struct esp_sip *sip = (struct esp_sip *)data;
-
+#endif
 	esp_dbg(ESP_DBG_ERROR, "rct");
 
 	sip_recalc_credit_claim(sip, 1);      /* recalc again */
@@ -209,10 +213,13 @@ static void sip_recalc_credit_timeout(unsigned long data)
 static void sip_recalc_credit_init(struct esp_sip *sip)
 {
 	atomic_set(&sip->credit_status, RECALC_CREDIT_DISABLE);  //set it disable
-
+	#if  (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+	timer_setup(&sip->credit_timer, sip_recalc_credit_timeout,0);
+	#else
 	init_timer(&sip->credit_timer);
 	sip->credit_timer.data = (unsigned long)sip;
-	sip->credit_timer.function = sip_recalc_credit_timeout;
+        sip->credit_timer.function = sip_recalc_credit_timeout;
+	#endif
 }
 
 static int sip_recalc_credit_claim(struct esp_sip *sip, int force)

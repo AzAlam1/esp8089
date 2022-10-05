@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 
 #include <net/mac80211.h>
+#include <linux/version.h>
 #include "sip2_common.h"
 
 #include "esp_debug.h"
@@ -76,22 +77,50 @@ struct dentry *esp_dump_var(const char *name, struct dentry *parent, void *value
 
         switch(type) {
         case ESP_U8:
-                rc = debugfs_create_u8(name, mode, parent, (u8*)value);
+                #if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0) 
+		rc = debugfs_create_u8(name, mode, parent, (u8*)value);
+		#else
+                debugfs_create_u8(name, mode, parent, (u8*)value);
+		#endif
                 break;
         case ESP_U16:
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)
                 rc = debugfs_create_u16(name, mode, parent, (u16*)value);
+		#else
+		debugfs_create_u16(name, mode, parent, (u16*)value);
+		#endif
                 break;
         case ESP_U32:
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)
                 rc = debugfs_create_u32(name, mode, parent, (u32*)value);
+		#else
+		debugfs_create_u32(name, mode, parent, (u32*)value);
+		#endif
                 break;
         case ESP_U64:
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)
                 rc = debugfs_create_u64(name, mode, parent, (u64*)value);
+		#else
+		debugfs_create_u64(name, mode, parent, (u64*)value);
+		#endif
                 break;
         case ESP_BOOL:
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)
                 rc = debugfs_create_bool(name, mode, parent, (u32*)value);
+		#else
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0)
+                debugfs_create_bool(name, mode, parent, (u32*)value);
+                #else
+                debugfs_create_bool(name, mode, parent, (bool*)value);
+                #endif
+		#endif
                 break;
         default: //32
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)
                 rc = debugfs_create_u32(name, mode, parent, (u32*)value);
+		#else
+		debugfs_create_u32(name, mode, parent, (u32*)value);
+		#endif
         }
 
         if (!rc)

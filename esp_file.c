@@ -25,9 +25,11 @@ int esp_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_
 {
         int ret = 0;
         struct file *filp = (struct file *)-ENOENT;
+	#ifdef set_fs
         mm_segment_t oldfs;
         oldfs = get_fs();
         set_fs(KERNEL_DS);
+	#endif
         do {
                 int mode = (wbuf) ? O_RDWR | O_CREAT : O_RDONLY;
                 filp = filp_open(filename, mode, (S_IRUSR | S_IWUSR));
@@ -69,7 +71,9 @@ int esp_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_
         if (!IS_ERR(filp)) {
                 filp_close(filp, NULL);
         }
+	#ifdef set_fs
         set_fs(oldfs);
+	#endif
 
         return ret;
 }
@@ -182,9 +186,10 @@ int logger_write( const unsigned char prio,
         vec[1].iov_len    = strlen(tag) + 1;
         vec[2].iov_base   = (void *) msg;
         vec[2].iov_len    = strlen(msg) + 1;
-
+	#ifdef set_fs
         oldfs = get_fs();
         set_fs(KERNEL_DS);
+	#endif
         do {
                 filp = filp_open("/dev/log/main", O_WRONLY, S_IRUSR);
                 if (IS_ERR(filp) || !filp->f_op) {
@@ -210,7 +215,9 @@ int logger_write( const unsigned char prio,
         if (!IS_ERR(filp)) {
                 filp_close(filp, NULL);
         }
+	#ifdef set_fs
         set_fs(oldfs);
+	#endif
 out_free_message:
         if (msg) {
                 kfree(msg);

@@ -16,7 +16,12 @@
 #include <net/regulatory.h>
 #endif
 /* for support scan in p2p concurrent */
+#if 0
 #include <../net/mac80211/ieee80211_i.h>
+#else
+#include <linux/ieee80211.h>
+#include "net/mac80211/ieee80211_i.h"
+#endif
 #include "esp_pub.h"
 #include "esp_sip.h"
 #include "esp_ctrl.h"
@@ -417,10 +422,17 @@ static bool beacon_tim_alter(struct sk_buff *beacon)
 
 unsigned long init_jiffies;
 unsigned long cycle_beacon_count;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+static void drv_handle_beacon(struct timer_list *list)
+{
+	struct esp_vif *evif = from_timer(evif,list,beacon_timer);
+        struct ieee80211_vif *vif = evif->vif;
+#else
 static void drv_handle_beacon(unsigned long data)
 {
 	struct ieee80211_vif *vif = (struct ieee80211_vif *) data;
 	struct esp_vif *evif = (struct esp_vif *)vif->drv_priv;
+#endif
 	struct sk_buff *beacon;
 	struct sk_buff *skb;
 	static int dbgcnt = 0;
@@ -471,7 +483,11 @@ static void init_beacon_timer(struct ieee80211_vif *vif)
 	ESP_IEEE80211_DBG(ESP_DBG_OP, " %s enter: beacon interval %x\n", __func__, evif->beacon_interval);
 
 	beacon_tim_init();
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+	timer_setup(&evif->beacon_timer ,drv_handle_beacon,0);
+	#else
 	init_timer(&evif->beacon_timer);  //TBD, not init here...
+	#endif
 	cycle_beacon_count = 1;
 	init_jiffies = jiffies;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
@@ -479,8 +495,12 @@ static void init_beacon_timer(struct ieee80211_vif *vif)
 #else
 	evif->beacon_timer.expires = init_jiffies + msecs_to_jiffies(cycle_beacon_count * evif->beacon_interval*1024/1000);
 #endif
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+        evif->vif = vif;
+        #else
 	evif->beacon_timer.data = (unsigned long) vif;
 	evif->beacon_timer.function = drv_handle_beacon;
+	#endif
 	add_timer(&evif->beacon_timer);
 }
 #endif
@@ -498,7 +518,11 @@ static void init_beacon_timer(struct ieee80211_vif *vif)
 #else
 	ESP_IEEE80211_DBG(ESP_DBG_OP, " %s enter: beacon interval %x\n", __func__, conf->beacon_int);
 #endif
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+        timer_setup(&evif->beacon_timer ,drv_handle_beacon,0);
+        #else
 	init_timer(&evif->beacon_timer);  //TBD, not init here...
+	#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
 	evif->beacon_timer.expires=jiffies+msecs_to_jiffies(vif->bss_conf.beacon_int*102/100);
 	evif->beacon_timer.data = (unsigned long) vif;
@@ -506,8 +530,12 @@ static void init_beacon_timer(struct ieee80211_vif *vif)
 	evif->beacon_timer.expires=jiffies+msecs_to_jiffies(conf->beacon_int*102/100);
 	evif->beacon_timer.data = (unsigned long) conf;
 #endif
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+        evif->vif = vif;
+        #else
 	//evif->beacon_timer.data = (unsigned long) vif;
 	evif->beacon_timer.function = drv_handle_beacon;
+	#endif
 	add_timer(&evif->beacon_timer);
 }
 */
@@ -902,7 +930,12 @@ void hw_scan_done(struct esp_pub *epub, bool aborted)
 
         ESSERT(epub->wl.scan_req != NULL);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+        struct cfg80211_scan_info info = {
+				.aborted = aborted,
+			};
+        ieee80211_scan_completed(epub->hw, &info);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
         ieee80211_scan_completed(epub->hw, aborted);
 #else
         ieee80211_scan_completed(epub->hw);
@@ -930,7 +963,12 @@ static void hw_scan_timeout_report(struct work_struct *work)
                 epub->wl.scan_req = NULL;
         }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+        struct cfg80211_scan_info info = {
+				.aborted = aborted,
+			};
+        ieee80211_scan_completed(epub->hw, &info);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
         ieee80211_scan_completed(epub->hw, aborted);
 #else
         ieee80211_scan_completed(epub->hw);
@@ -1555,17 +1593,28 @@ static int esp_op_ampdu_action(struct ieee80211_hw *hw,
                 struct ieee80211_vif *vif,
                                enum ieee80211_ampdu_mlme_action action,
                                struct ieee80211_sta *sta, u16 tid, u16 *ssn)
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 69))
 static int esp_op_ampdu_action(struct ieee80211_hw *hw,
                                struct ieee80211_vif *vif,
                                enum ieee80211_ampdu_mlme_action action,
                                struct ieee80211_sta *sta, u16 tid, u16 *ssn,
                                u8 buf_size)
+#else
+static int esp_op_ampdu_action(struct ieee80211_hw *hw,
+                               struct ieee80211_vif *vif,
+                               struct ieee80211_ampdu_params *params)
 #endif
 #endif /* NEW_KERNEL && KERNEL_35 */
 {
         int ret = -EOPNOTSUPP;
         struct esp_pub *epub = (struct esp_pub *)hw->priv;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 69))
+        enum ieee80211_ampdu_mlme_action action = params->action;
+        struct ieee80211_sta *sta=params->sta;
+        u16 tid=params->tid;
+        u16 *ssn=&params->ssn;
+        u8 buf_size=params->buf_size;
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
         struct esp_node * node = (struct esp_node *)sta->drv_priv;
 #else
