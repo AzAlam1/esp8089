@@ -28,7 +28,7 @@ SSH into your Raspberry Pi and enter the following commands.
 `git clone https://github.com/oshlab/esp8089.git`
 `cd esp8089`
 `mkdir net`
-`cp -R ~/linux/net/mac80211 ./net/
+`cp -R ~/linux/net/mac80211 ./net/`
 `sudo sh install`
 
 This is going to take a while.
