@@ -19,8 +19,14 @@ You need git if it is not already installed.
 SSH into your Raspberry Pi and enter the following commands.
 
 `cd ~`
+`git clone https://github.com/raspberrypi/linux`
+`cd linux`
+`git checkout `uname -r | cut -f 1,2 -d .`.y`
+`cd ~`
 `git clone https://github.com/oshlab/esp8089.git`
 `cd esp8089`
+`mkdir net`
+`cp -R ~/linux/net/mac80211 ./net/
 `sudo sh install`
 
 This is going to take a while.
